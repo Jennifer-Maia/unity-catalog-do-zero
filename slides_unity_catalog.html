@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Unity Catalog do zero — Slides</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+/* ===========================================
+   TEMA (troque as cores aqui)
+   =========================================== */
+:root {
+  --bg: #0c0c0e;          /* fundo */
+  --bg-2: #15151a;        /* cartões */
+  --ink: #f4efe6;         /* texto principal */
+  --mute: #9b9ba6;        /* texto secundário */
+  --line: rgba(244, 239, 230, .14);
+  --accent: #ff5b1f;      /* destaque (laranja) */
+  --accent-soft: rgba(255, 91, 31, .16);
+
+  --display: 'Archivo Black', 'Arial Black', sans-serif;
+  --body: 'Space Grotesk', 'Segoe UI', system-ui, sans-serif;
+  --mono: 'JetBrains Mono', Consolas, monospace;
+}
+
+/* ===========================================
+   VIEWPORT FITTING (base do frontend-slides)
+   =========================================== */
+*, *::before, *::after { box-sizing: border-box; }
+/* a rolagem nativa fica desligada: a navegação é feita pelo JavaScript
+   (teclado, roda, toque e pontos), o que mantém cada slide alinhado */
+html, body { height: 100%; margin: 0; overflow: hidden; touch-action: none; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--body);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* os slides ficam empilhados e o JavaScript desloca a pilha: sem rolagem nativa */
+.deck { position: fixed; inset: 0; overflow: hidden; }
+.slide {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  transition: transform .7s cubic-bezier(.2,.7,.2,1);
+  display: flex;
+  flex-direction: column;
+  padding: clamp(1.25rem, 5vh, 4rem) clamp(1.25rem, 6vw, 9rem) clamp(3.5rem, 10vh, 6.5rem);
+  /* grade bem sutil + brilho laranja no canto */
+  background-color: var(--bg);
+  background-image:
+    linear-gradient(rgba(244,239,230,.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(244,239,230,.035) 1px, transparent 1px),
+    radial-gradient(900px 600px at 100% 0%, var(--accent-soft), transparent 60%);
+  background-size: 120px 120px, 120px 120px, auto;
+}
+
+.content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  max-height: 100%;
+  min-height: 0;
+  position: relative;
+  z-index: 1;
+}
+
+/* ===========================================
+   TIPOGRAFIA
+   =========================================== */
+h1, h2, h3 { font-family: var(--display); margin: 0; line-height: .98; letter-spacing: -.01em; font-weight: 400; }
+h1 { font-size: clamp(3rem, min(9vw, 15vh), 10.5rem); text-transform: none; }
+h2 { font-size: clamp(2.2rem, min(6vw, 11vh), 6.2rem); }
+h3 { font-size: clamp(1.25rem, min(2.4vw, 4.5vh), 2.4rem); line-height: 1.1; font-family: var(--body); font-weight: 700; }
+p  { margin: 0; font-size: clamp(1rem, min(1.7vw, 3.2vh), 1.8rem); line-height: 1.4; color: var(--mute); }
+.kicker {
+  font-family: var(--mono);
+  font-size: clamp(.75rem, min(1.1vw, 2vh), 1.05rem);
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: clamp(.6rem, 2vh, 1.5rem);
+}
+.accent { color: var(--accent); }
+.mono { font-family: var(--mono); }
+.ghost {
+  position: absolute;
+  right: clamp(1rem, 4vw, 5rem);
+  top: 50%;
+  transform: translateY(-50%);
+  font-family: var(--display);
+  font-size: clamp(10rem, 38vh, 30rem);
+  line-height: 1;
+  color: transparent;
+  -webkit-text-stroke: 2px rgba(244,239,230,.07);
+  pointer-events: none;
+  user-select: none;
+}
+.hud {
+  position: absolute;
+  left: clamp(1.25rem, 6vw, 9rem);
+  right: clamp(1.25rem, 6vw, 9rem);
+  bottom: clamp(.8rem, 3vh, 2rem);
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--mono);
+  font-size: clamp(.7rem, 1vw, .95rem);
+  color: var(--mute);
+  z-index: 2;
+}
+
+/* destaque de frase de efeito */
+.quote {
+  display: inline-block;
+  font-family: var(--display);
+  font-size: clamp(1.4rem, min(3vw, 5.5vh), 3.2rem);
+  line-height: 1.1;
+  color: var(--ink);
+  padding: .4em .6em .45em;
+  border-left: 6px solid var(--accent);
+  background: var(--accent-soft);
+}
+
+/* ===========================================
+   COMPONENTES
+   =========================================== */
+.cards { display: grid; gap: clamp(.6rem, 1.6vw, 1.4rem); }
+.card {
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: clamp(.9rem, 2vw, 1.8rem);
+}
+.card.hot { border-color: var(--accent); background: linear-gradient(160deg, rgba(255,91,31,.22), var(--bg-2) 70%); }
+.num {
+  font-family: var(--display);
+  color: var(--accent);
+  font-size: clamp(1.2rem, min(2.4vw, 4.5vh), 2.2rem);
+  margin-bottom: .4em;
+  display: block;
+}
+.chip {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: clamp(.75rem, 1.1vw, 1rem);
+  padding: .45em .9em;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--ink);
+  margin: .2em;
+}
+.chip.hot { border-color: var(--accent); color: var(--accent); }
+.chip.dim { color: var(--mute); border-style: dashed; }
+
+.svg-fig { width: 100%; height: auto; max-height: min(58vh, 560px); display: block; }
+.svg-fig text { font-family: var(--body); }
+
+/* ===========================================
+   SLIDE 1: capa
+   =========================================== */
+.s1 .grid-cells {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: clamp(.4rem, 1vw, .9rem);
+  width: min(560px, 42vw);
+  margin-top: clamp(1.2rem, 4vh, 3rem);
+}
+.s1 .cell {
+  aspect-ratio: 1.4;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  font-family: var(--mono);
+  font-size: clamp(.6rem, .9vw, .85rem);
+  color: var(--mute);
+}
+.s1 .cell.lock { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+.s1 .split { display: grid; grid-template-columns: 1.25fr 1fr; gap: clamp(2rem, 5vw, 6rem); align-items: center; height: 100%; }
+.s1 h1 .line2 { color: var(--accent); display: block; }
+
+/* ===========================================
+   SLIDE 2: o que você vai levar
+   =========================================== */
+.s2 .list { display: grid; gap: clamp(.8rem, 2.4vh, 1.8rem); margin: clamp(1rem, 3vh, 2.4rem) 0; }
+.s2 .item { display: grid; grid-template-columns: clamp(3.2rem, 6vw, 6rem) 1fr; gap: 1rem; align-items: center; }
+.s2 .item h3 { font-size: clamp(1.2rem, min(2.8vw, 5vh), 2.6rem); font-family: var(--display); font-weight: 400; color: var(--ink); line-height: 1.05; }
+
+/* ===========================================
+   SLIDES 3 e 4: antes x depois
+   =========================================== */
+.ba { display: flex; flex-direction: column; gap: clamp(1rem, 2.6vh, 2rem); }
+.ws-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: clamp(.6rem, 1.6vw, 1.2rem); }
+.ws {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: clamp(.8rem, 2vw, 1.4rem);
+  background: var(--bg-2);
+  position: relative;
+}
+.ws .rules {
+  font-family: var(--mono);
+  font-size: clamp(.7rem, 1vw, .9rem);
+  color: var(--mute);
+  line-height: 1.6;
+  margin-top: .6em;
+}
+.ws .mark { position: absolute; right: .8rem; top: .6rem; font-family: var(--display); color: var(--accent); font-size: clamp(1.2rem, 2vw, 1.8rem); }
+.uc-bar {
+  background: var(--accent);
+  color: #0c0c0e;
+  border-radius: 14px;
+  padding: clamp(.8rem, 2vw, 1.4rem) clamp(1rem, 2.4vw, 2rem);
+  font-family: var(--display);
+  font-size: clamp(1.1rem, min(2.6vw, 4.8vh), 2.4rem);
+  text-align: center;
+  position: relative;
+  z-index: 1;
+}
+.tree-lines { position: relative; height: clamp(1.2rem, 4vh, 2.4rem); }
+.tree-lines::before {
+  content: ""; position: absolute; left: 16.6%; right: 16.6%; top: 50%;
+  height: 2px; background: var(--accent);
+}
+.tree-lines::after {
+  content: ""; position: absolute; left: 50%; top: 0; bottom: 50%; width: 2px; background: var(--accent);
+}
+.ws-row.connected { position: relative; }
+.pillars { display: flex; flex-wrap: wrap; gap: .6rem; }
+.pillars .chip { font-size: clamp(.85rem, 1.4vw, 1.25rem); padding: .6em 1.1em; }
+
+/* ===========================================
+   SLIDE 5: hierarquia
+   =========================================== */
+.hier { display: flex; align-items: stretch; gap: clamp(.4rem, 1.2vw, 1.2rem); flex-wrap: wrap; }
+.hier .lvl {
+  flex: 1 1 0;
+  min-width: 150px;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: clamp(.9rem, 2vw, 1.6rem);
+  position: relative;
+}
+.hier .lvl .tag { font-family: var(--mono); font-size: clamp(.7rem, 1vw, .9rem); color: var(--accent); letter-spacing: .1em; text-transform: uppercase; }
+.hier .lvl h3 { font-family: var(--display); font-weight: 400; font-size: clamp(1.2rem, min(2.6vw, 4.8vh), 2.4rem); margin-top: .3em; }
+.hier .lvl p { font-size: clamp(.8rem, 1.2vw, 1rem); margin-top: .4em; }
+.hier .lvl.meta { border-style: dashed; opacity: .75; }
+.hier .lvl.main { background: linear-gradient(160deg, rgba(255,91,31,.2), var(--bg-2) 70%); border-color: var(--accent); }
+.hier .arrow { align-self: center; color: var(--accent); font-family: var(--display); font-size: clamp(1.2rem, 2.4vw, 2.2rem); }
+
+/* ===========================================
+   SLIDE 6: prédio, andar, sala
+   =========================================== */
+.analogy { display: grid; grid-template-columns: repeat(3, 1fr); gap: clamp(.7rem, 2vw, 1.6rem); }
+.analogy .card { text-align: left; }
+.analogy svg { width: clamp(70px, 9vw, 130px); height: auto; display: block; margin-bottom: clamp(.6rem, 2vh, 1.2rem); }
+.analogy h3 { font-family: var(--display); font-weight: 400; font-size: clamp(1.4rem, min(3vw, 5.5vh), 2.8rem); }
+.analogy .sub { font-family: var(--mono); color: var(--accent); font-size: clamp(.8rem, 1.2vw, 1.05rem); margin-top: .3em; }
+.path {
+  margin-top: clamp(1rem, 3vh, 2.2rem);
+  font-family: var(--mono);
+  font-size: clamp(.95rem, min(2.2vw, 4vh), 2rem);
+  color: var(--ink);
+}
+.path span { color: var(--accent); }
+
+/* ===========================================
+   SLIDE 7: cascata
+   =========================================== */
+.cascade { display: grid; grid-template-columns: 1.1fr .9fr; gap: clamp(1.4rem, 4vw, 4rem); align-items: center; }
+.tree { position: relative; padding-left: clamp(1rem, 3vw, 2.4rem); }
+.tree::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: linear-gradient(var(--accent), transparent); }
+.tree .node {
+  position: relative;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: clamp(.6rem, 1.4vw, 1rem) clamp(.8rem, 1.6vw, 1.3rem);
+  margin-bottom: clamp(.6rem, 1.8vh, 1.2rem);
+  font-family: var(--mono);
+  font-size: clamp(.85rem, 1.4vw, 1.2rem);
+}
+.tree .node::before {
+  content: ""; position: absolute; left: calc(-1 * clamp(1rem, 3vw, 2.4rem)); top: 50%; width: clamp(1rem, 3vw, 2.4rem); height: 2px; background: var(--accent);
+}
+.tree .node b { color: var(--accent); font-weight: 600; }
+.tree .node.l2 { margin-left: clamp(1rem, 3vw, 2.4rem); }
+.tree .node.l3 { margin-left: clamp(2rem, 6vw, 4.8rem); }
+.keys { background: var(--accent); color: #0c0c0e; border-radius: 16px; padding: clamp(1rem, 2.6vw, 2rem); }
+.keys h3 { font-family: var(--display); font-weight: 400; font-size: clamp(1.3rem, min(2.8vw, 5vh), 2.6rem); line-height: 1.05; }
+.keys p { color: #0c0c0e; opacity: .85; margin-top: .6em; }
+.keys .k { font-family: var(--mono); font-weight: 600; font-size: clamp(.9rem, 1.4vw, 1.25rem); display: block; margin-top: .6em; }
+
+/* ===========================================
+   SLIDE 8: 3 erros
+   =========================================== */
+.errors { display: grid; grid-template-columns: repeat(3, 1fr); gap: clamp(.7rem, 2vw, 1.6rem); }
+.errors .card { min-height: clamp(220px, 40vh, 380px); display: flex; flex-direction: column; }
+.errors h3 { font-family: var(--display); font-weight: 400; font-size: clamp(1.3rem, min(2.8vw, 5vh), 2.5rem); margin-bottom: .5em; line-height: 1.05; }
+.errors .fix { margin-top: auto; font-family: var(--mono); font-size: clamp(.8rem, 1.2vw, 1rem); color: var(--accent); }
+
+/* ===========================================
+   SLIDE 9 e 10
+   =========================================== */
+.recap { display: grid; gap: clamp(.8rem, 2.4vh, 1.8rem); }
+.recap .item { display: grid; grid-template-columns: clamp(3.2rem, 6vw, 6rem) 1fr; gap: 1rem; align-items: center; }
+.recap .item h3 { font-family: var(--display); font-weight: 400; font-size: clamp(1.2rem, min(2.8vw, 5vh), 2.6rem); line-height: 1.1; }
+.teaser { margin-top: clamp(1rem, 3vh, 2.4rem); font-family: var(--mono); font-size: clamp(.85rem, 1.3vw, 1.1rem); color: var(--mute); }
+.teaser b { color: var(--accent); font-weight: 600; }
+.qs { counter-reset: q; display: grid; gap: clamp(.7rem, 2vh, 1.4rem); margin-top: clamp(1rem, 3vh, 2rem); }
+.qs li { list-style: none; font-size: clamp(1.1rem, min(2.4vw, 4.4vh), 2.2rem); font-family: var(--body); font-weight: 500; line-height: 1.25; }
+.qs li::before { counter-increment: q; content: counter(q, decimal-leading-zero); font-family: var(--mono); color: var(--accent); margin-right: .8em; font-size: .6em; vertical-align: .25em; }
+.qs { padding: 0; margin-left: 0; }
+
+/* reveal (Intersection Observer) */
+.reveal { opacity: 0; transform: translateY(18px); transition: opacity .6s ease, transform .6s cubic-bezier(.2,.7,.2,1); transition-delay: var(--d, 0s); }
+.is-in .reveal { opacity: 1; transform: none; }
+
+/* ===========================================
+   NAVEGAÇÃO
+   =========================================== */
+.progress { position: fixed; left: 0; top: 0; height: 4px; width: 0; background: linear-gradient(90deg, var(--accent), #ffb199); z-index: 10; transition: width .4s ease; }
+.dots { position: fixed; right: clamp(.5rem, 1.6vw, 1.4rem); top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: .55rem; z-index: 9; }
+.dots button {
+  width: 10px; height: 10px; border-radius: 50%; border: 1px solid var(--mute); background: transparent; padding: 0; cursor: pointer;
+}
+.dots button[aria-current="true"] { background: var(--accent); border-color: var(--accent); }
+.dots button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.hint { position: fixed; left: clamp(1rem, 3vw, 2.4rem); bottom: clamp(.8rem, 2vh, 1.4rem); font-family: var(--mono); font-size: .75rem; color: var(--mute); z-index: 9; }
+
+/* ===========================================
+   RESPONSIVO
+   =========================================== */
+@media (max-width: 900px) {
+  .s1 .split, .cascade { grid-template-columns: 1fr; }
+  .s1 .grid-cells { width: min(420px, 80vw); }
+  .analogy, .errors, .ws-row { grid-template-columns: 1fr; }
+  .ghost { display: none; }
+  .hint { display: none; }
+}
+@media (max-height: 600px) {
+  .hint, .dots { display: none; }
+}
+
+/* ===========================================
+   MOVIMENTO REDUZIDO
+   =========================================== */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; }
+  html { scroll-behavior: auto; }
+  .reveal { opacity: 1; transform: none; }
+}
+</style>
+</head>
+<body>
+
+<div class="progress" id="progress" aria-hidden="true"></div>
+<nav class="dots" id="dots" aria-label="Navegação dos slides"></nav>
+
+<main class="deck">
+
+<!-- ============ SLIDE 1 ============ -->
+<section class="slide s1" id="s1" aria-label="Slide 1: Quem acessa o quê?">
+  <div class="content">
+    <div class="split">
+      <div class="reveal">
+        <p class="kicker">Jornada de Dados · Databricks</p>
+        <h1>Quem acessa <span class="line2">o quê?</span></h1>
+        <p style="margin-top:1.4rem">Unity Catalog do zero</p>
+      </div>
+      <div class="reveal" style="--d:.15s">
+        <svg viewBox="0 0 400 300" class="svg-fig" role="img" aria-label="Grade de tabelas do lakehouse, com algumas protegidas por cadeado">
+          <g fill="none" stroke="#f4efe6" stroke-opacity=".25" stroke-width="1.5">
+            <rect x="10" y="10" width="180" height="120" rx="10"/>
+            <rect x="210" y="10" width="180" height="120" rx="10"/>
+            <rect x="10" y="150" width="180" height="120" rx="10"/>
+            <rect x="210" y="150" width="180" height="120" rx="10"/>
+          </g>
+          <g fill="#15151a" stroke="#f4efe6" stroke-opacity=".3">
+            <rect x="28" y="30" width="144" height="18" rx="4"/>
+            <rect x="28" y="58" width="144" height="18" rx="4"/>
+            <rect x="28" y="86" width="144" height="18" rx="4"/>
+          </g>
+          <g fill="rgba(255,91,31,.16)" stroke="#ff5b1f" stroke-width="2">
+            <rect x="228" y="30" width="144" height="18" rx="4"/>
+            <rect x="228" y="58" width="144" height="18" rx="4"/>
+            <rect x="228" y="86" width="144" height="18" rx="4"/>
+          </g>
+          <g fill="#15151a" stroke="#f4efe6" stroke-opacity=".3">
+            <rect x="28" y="170" width="144" height="18" rx="4"/>
+            <rect x="28" y="198" width="144" height="18" rx="4"/>
+          </g>
+          <!-- cadeado -->
+          <g transform="translate(320 186)" fill="none" stroke="#ff5b1f" stroke-width="4">
+            <rect x="-22" y="-2" width="44" height="34" rx="6" fill="#ff5b1f" fill-opacity=".25"/>
+            <path d="M-12 -2 V-12 a12 12 0 0 1 24 0 V-2"/>
+          </g>
+          <text x="20" y="290" fill="#9b9ba6" font-family="JetBrains Mono, monospace" font-size="14">cada tabela, uma regra de acesso</text>
+        </svg>
+      </div>
+    </div>
+  </div>
+  <div class="ghost" aria-hidden="true">01</div>
+  <div class="hud"><span>Unity Catalog do zero</span><span class="counter">01 / 10</span></div>
+</section>
+
+<!-- ============ SLIDE 2 ============ -->
+<section class="slide s2" id="s2" aria-label="Slide 2: O que você vai levar">
+  <div class="content">
+    <p class="kicker reveal">Apresentação · Jennifer Maia</p>
+    <h2 class="reveal" style="--d:.05s">O que você vai levar</h2>
+    <div class="list">
+      <div class="item reveal" style="--d:.12s"><span class="num">01</span><h3>O que é o Unity Catalog e que problema ele resolve</h3></div>
+      <div class="item reveal" style="--d:.2s"><span class="num">02</span><h3>A hierarquia: catálogo, schema e tabela</h3></div>
+      <div class="item reveal" style="--d:.28s"><span class="num">03</span><h3>Como dar permissão do jeito certo</h3></div>
+    </div>
+    <p class="reveal" style="--d:.36s"><span class="quote">Sem governança, dado é bagunça com custo.</span></p>
+  </div>
+  <div class="ghost" aria-hidden="true">02</div>
+  <div class="hud"><span>Unity Catalog do zero</span><span class="counter">02 / 10</span></div>
+</section>
+
+<!-- ============ SLIDE 3: ANTES ============ -->
+<section class="slide s3" id="s3" aria-label="Slide 3: Antes">
+  <div class="content ba">
+    <p class="kicker reveal">Antes</p>
+    <h2 class="reveal" style="--d:.05s">Permissões soltas</h2>
+    <div class="ws-row reveal" style="--d:.15s">
+      <div class="ws"><span class="mark">?</span><h3>Workspace A</h3><div class="rules">regra própria<br>acesso próprio<br>sem histórico</div></div>
+      <div class="ws"><span class="mark">?</span><h3>Workspace B</h3><div class="rules">regra própria<br>acesso próprio<br>sem histórico</div></div>
+      <div class="ws"><span class="mark">?</span><h3>Workspace C</h3><div class="rules">regra própria<br>acesso próprio<br>sem histórico</div></div>
+    </div>
+    <p class="reveal" style="--d:.3s">Quem viu o quê? Uma caça ao tesouro.</p>
+  </div>
+  <div class="ghost" aria-hidden="true">03</div>
+  <div class="hud"><span>Unity Catalog do zero</span><span class="counter">03 / 10</span></div>
+</section>
+
+<!-- ============ SLIDE 4: DEPOIS ============ -->
+<section class="slide s4" id="s4" aria-label="Slide 4: Depois">
+  <div class="content ba">
+    <p class="kicker reveal">Depois</p>
+    <h2 class="reveal" style="--d:.05s">Um único lugar governando tudo</h2>
+    <div class="reveal" style="--d:.15s">
+      <div class="uc-bar">Unity Catalog · regras definidas uma vez</div>
+      <div class="tree-lines"></div>
+      <div class="ws-row">
+        <div class="ws"><h3>Workspace A</h3><div class="rules">herda as mesmas regras</div></div>
+        <div class="ws"><h3>Workspace B</h3><div class="rules">herda as mesmas regras</div></div>
+        <div class="ws"><h3>Workspace C</h3><div class="rules">herda as mesmas regras</div></div>
+      </div>
+    </div>
+    <div class="pillars reveal" style="--d:.3s">
+      <span class="chip hot">controle de acesso</span>
+      <span class="chip hot">auditoria</span>
+      <span class="chip hot">lineage</span>
+      <span class="chip dim">descoberta · próximo vídeo</span>
+    </div>
+  </div>
+  <div class="ghost" aria-hidden="true">04</div>
+  <div class="hud"><span>Unity Catalog do zero</span><span class="counter">04 / 10</span></div>
+</section>
+
+<!-- ============ SLIDE 5: HIERARQUIA ============ -->
+<section class="slide s5" id="s5" aria-label="Slide 5: Hierarquia">
+  <div class="content">
+    <p class="kicker reveal">Hierarquia</p>
+    <h2 class="reveal" style="--d:.05s">Catálogo, schema, tabela</h2>
+    <div class="hier reveal" style="--d:.15s">
+      <div class="lvl meta"><span class="tag">topo</span><h3>Metastore</h3><p>o cérebro · time de plataforma</p></div>
+      <span class="arrow" aria-hidden="true">→</span>
+      <div class="lvl main"><span class="tag">nível 1</span><h3>Catálogo</h3><p>o prédio</p></div>
+      <span class="arrow" aria-hidden="true">→</span>
+      <div class="lvl main"><span class="tag">nível 2</span><h3>Schema</h3><p>o andar</p></div>
+      <span class="arrow" aria-hidden="true">→</span>
+      <div class="lvl main"><span class="tag">nível 3</span><h3>Tabela</h3><p>a sala · ou view, ou volume</p></div>
+    </div>
+    <p class="reveal" style="--d:.3s; margin-top:clamp(1.4rem,4vh,3rem)"><span class="quote">Decorou isso, decorou 80%.</span></p>
+  </div>
+  <div class="ghost" aria-hidden="true">05</div>
+  <div class="hud"><span>Unity Catalog do zero</span><span class="counter">05 / 10</span></div>
+</section>
+
+<!-- ============ SLIDE 6: ANALOGIA ============ -->
+<section class="slide s6" id="s6" aria-label="Slide 6: Prédio, andar e sala">
+  <div class="content">
+    <p class="kicker reveal">Analogia</p>
+    <h2 class="reveal" style="--d:.05s">Prédio, andar e sala</h2>
+    <div class="analogy" style="margin-top:clamp(1.2rem,4vh,2.8rem)">
+      <div class="card reveal" style="--d:.12s">
+        <svg viewBox="0 0 100 100" aria-hidden="true"><g fill="none" stroke="#ff5b1f" stroke-width="4" stroke-linejoin="round"><rect x="22" y="10" width="56" height="82" rx="3"/><path d="M34 26h8M58 26h8M34 44h8M58 44h8M34 62h8M58 62h8"/><path d="M44 92V76h12v16"/></g></svg>
+        <h3>Prédio</h3><div class="sub">catálogo</div>
+      </div>
+      <div class="card reveal" style="--d:.2s">
+        <svg viewBox="0 0 100 100" aria-hidden="true"><g fill="none" stroke="#ff5b1f" stroke-width="4" stroke-linejoin="round"><path d="M8 80 H92"/><path d="M14 80 V56 H40 V80"/><path d="M60 80 V56 H86 V80"/><path d="M40 56 V40 H60 V56"/><path d="M46 40 V26 H54 V40"/></g></svg>
+        <h3>Andar</h3><div class="sub">schema</div>
+      </div>
+      <div class="card reveal" style="--d:.28s">
+        <svg viewBox="0 0 100 100" aria-hidden="true"><g fill="none" stroke="#ff5b1f" stroke-width="4" stroke-linejoin="round"><rect x="26" y="12" width="48" height="78" rx="2"/><circle cx="66" cy="54" r="3" fill="#ff5b1f"/><path d="M14 90 H86"/></g></svg>
+        <h3>Sala</h3><div class="sub">tabela</div>
+      </div>
+    </div>
+    <p class="path reveal" style="--d:.36s">vendas<span>.</span>ecommerce<span>.</span>pedidos</p>
+    <p class="reveal" style="--d:.42s; margin-top:.6rem">catálogo . schema . tabela: três níveis, separados por ponto</p>
+  </div>
+  <div class="ghost" aria-hidden="true">06</div>
+  <div class="hud"><span>Unity Catalog do zero</span><span class="counter">06 / 10</span></div>
+</section>
+
+<!-- ============ SLIDE 7: CASCATA ============ -->
+<section class="slide s7" id="s7" aria-label="Slide 7: Permissão desce em cascata">
+  <div class="content">
+    <p class="kicker reveal">Permissões</p>
+    <h2 class="reveal" style="--d:.05s">A permissão desce em cascata</h2>
+    <div class="cascade" style="margin-top:clamp(1.2rem,4vh,2.8rem)">
+      <div class="tree reveal" style="--d:.12s">
+        <div class="node"><b>SELECT</b> no catálogo</div>
+        <div class="node l2"><b>→</b> vale para o schema</div>
+        <div class="node l3"><b>→</b> vale para a tabela</div>
+      </div>
+      <div class="keys reveal" style="--d:.22s">
+        <h3>As chaves da porta</h3>
+        <span class="k">USE CATALOG</span>
+        <span class="k">USE SCHEMA</span>
+        <p>Sem elas, o SELECT sozinho não funciona.</p>
+      </div>
+    </div>
+  </div>
+  <div class="ghost" aria-hidden="true">07</div>
+  <div class="hud"><span>Unity Catalog do zero</span><span class="counter">07 / 10</span></div>
+</section>
+
+<!-- ============ SLIDE 8: 3 ERROS ============ -->
+<section class="slide s8" id="s8" aria-label="Slide 8: 3 erros que custam caro">
+  <div class="content">
+    <p class="kicker reveal">Erros comuns</p>
+    <h2 class="reveal" style="--d:.05s">3 erros que custam caro</h2>
+    <div class="errors" style="margin-top:clamp(1.2rem,4vh,2.8rem)">
+      <div class="card reveal" style="--d:.12s">
+        <span class="num">01</span>
+        <h3>Permissão para pessoas, não grupos</h3>
+        <p>Funciona no começo e vira pesadelo.</p>
+        <div class="fix">→ use grupos</div>
+      </div>
+      <div class="card reveal" style="--d:.2s">
+        <span class="num">02</span>
+        <h3>Dev e prod no mesmo catálogo</h3>
+        <p>Fica confuso, inseguro e difícil de gerenciar.</p>
+        <div class="fix">→ um catálogo por ambiente</div>
+      </div>
+      <div class="card hot reveal" style="--d:.28s">
+        <span class="num">03</span>
+        <h3>Esquecer USE CATALOG e USE SCHEMA</h3>
+        <p>O SELECT existe, mas o acesso falha.</p>
+        <div class="fix">→ as chaves</div>
+      </div>
+    </div>
+  </div>
+  <div class="ghost" aria-hidden="true">08</div>
+  <div class="hud"><span>Unity Catalog do zero</span><span class="counter">08 / 10</span></div>
+</section>
+
+<!-- ============ SLIDE 9: RECAP ============ -->
+<section class="slide s9" id="s9" aria-label="Slide 9: Recap">
+  <div class="content">
+    <p class="kicker reveal">Recap</p>
+    <h2 class="reveal" style="--d:.05s">Três pontos para lembrar</h2>
+    <div class="recap" style="margin-top:clamp(1.2rem,4vh,2.8rem)">
+      <div class="item reveal" style="--d:.12s"><span class="num">01</span><h3>Governança centralizada: acesso, auditoria e lineage</h3></div>
+      <div class="item reveal" style="--d:.2s"><span class="num">02</span><h3>Catálogo, schema, tabela, e as permissões descem em cascata</h3></div>
+      <div class="item reveal" style="--d:.28s"><span class="num">03</span><h3>Grupos, um catálogo por ambiente e as chaves: USE CATALOG e USE SCHEMA</h3></div>
+    </div>
+    <p class="teaser reveal" style="--d:.36s">Próximo vídeo: <b>comentários, tags e mascaramento de dados sensíveis</b></p>
+  </div>
+  <div class="ghost" aria-hidden="true">09</div>
+  <div class="hud"><span>Unity Catalog do zero</span><span class="counter">09 / 10</span></div>
+</section>
+
+<!-- ============ SLIDE 10: CTA ============ -->
+<section class="slide s10" id="s10" aria-label="Slide 10: Comentários">
+  <div class="content">
+    <p class="kicker reveal">Me conta nos comentários</p>
+    <h2 class="reveal" style="--d:.05s">Se ajudou, deixa o like</h2>
+    <ol class="qs">
+      <li class="reveal" style="--d:.14s">Como você organiza seus catálogos hoje?</li>
+      <li class="reveal" style="--d:.22s">Qual é a sua maior dúvida sobre Databricks?</li>
+      <li class="reveal" style="--d:.3s">Tem interesse em comentários, tags e mascaramento de dados sensíveis?</li>
+    </ol>
+  </div>
+  <div class="ghost" aria-hidden="true">10</div>
+  <div class="hud"><span>Unity Catalog do zero</span><span class="counter">10 / 10</span></div>
+</section>
+
+</main>
+
+<script>
+/* ===========================================
+   CONTROLE DE NAVEGAÇÃO
+   teclado, roda do mouse, toque, dots, hash (#3)
+   =========================================== */
+(function () {
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  const dotsBox = document.getElementById('dots');
+  const progress = document.getElementById('progress');
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let current = 0;
+
+  // cria os dots de navegação
+  slides.forEach((s, i) => {
+    const b = document.createElement('button');
+    b.setAttribute('aria-label', 'Ir para o slide ' + (i + 1));
+    b.addEventListener('click', () => go(i));
+    dotsBox.appendChild(b);
+  });
+  const dots = Array.from(dotsBox.children);
+
+  // move a pilha: o slide atual fica em 0, os outros em +100% ou -100%
+  function go(i, animate = true) {
+    current = Math.max(0, Math.min(slides.length - 1, i));
+    slides.forEach((s, k) => {
+      s.style.transition = animate && !reduce ? '' : 'none';
+      s.style.transform = 'translateY(' + ((k - current) * 100) + '%)';
+      s.classList.toggle('is-in', k === current);
+    });
+    dots.forEach((d, k) => d.setAttribute('aria-current', k === current ? 'true' : 'false'));
+    progress.style.width = ((current + 1) / slides.length * 100) + '%';
+    history.replaceState(null, '', '#' + (current + 1));
+  }
+  function next() { go(current + 1); }
+  function prev() { go(current - 1); }
+
+  // Intersection Observer: dispara as animações de entrada do slide visível
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach((e) => { if (e.isIntersecting) e.target.classList.add('is-in'); });
+  }, { threshold: 0.5 });
+  slides.forEach((s) => io.observe(s));
+
+  // teclado
+  document.addEventListener('keydown', (e) => {
+    if (['ArrowDown', 'ArrowRight', 'PageDown', ' '].includes(e.key)) { e.preventDefault(); next(); }
+    else if (['ArrowUp', 'ArrowLeft', 'PageUp'].includes(e.key)) { e.preventDefault(); prev(); }
+    else if (e.key === 'Home') { e.preventDefault(); go(0); }
+    else if (e.key === 'End') { e.preventDefault(); go(slides.length - 1); }
+  });
+
+  // roda do mouse (uma troca por gesto)
+  let wheelLock = false;
+  window.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    if (wheelLock || Math.abs(e.deltaY) < 20) return;
+    wheelLock = true;
+    e.deltaY > 0 ? next() : prev();
+    setTimeout(() => (wheelLock = false), 800);
+  }, { passive: false });
+
+  // toque (swipe vertical ou horizontal)
+  let touchY = null, touchX = null;
+  window.addEventListener('touchstart', (e) => { touchY = e.touches[0].clientY; touchX = e.touches[0].clientX; }, { passive: true });
+  window.addEventListener('touchend', (e) => {
+    if (touchY === null) return;
+    const dy = touchY - e.changedTouches[0].clientY;
+    const dx = touchX - e.changedTouches[0].clientX;
+    const d = Math.abs(dy) > Math.abs(dx) ? dy : dx;
+    if (Math.abs(d) > 50) (d > 0 ? next() : prev());
+    touchY = touchX = null;
+  }, { passive: true });
+
+  // abre direto num slide: index.html#5
+  const start = parseInt((location.hash || '').replace('#', ''), 10);
+  go(start >= 1 && start <= slides.length ? start - 1 : 0, false);
+})();
+</script>
+</body>
+</html>
